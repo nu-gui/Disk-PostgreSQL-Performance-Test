@@ -25,10 +25,15 @@ function cleanup() {
 }
 trap cleanup EXIT
 
-# Prompt user for disk device, pgbench scale factor, report directory, and database name
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+NC='\033[0m'
+
+# Prompt user for disk device, show a short notice
+echo -e "${GREEN}[INFO] Starting disk and PostgreSQL benchmark...${NC}"
 read -rp "Enter the disk device to test (e.g., /dev/sda): " DISK
 if [ ! -b "$DISK" ]; then
-  echo "[ERROR] Disk device $DISK does not exist. Exiting."
+  echo -e "${RED}[ERROR] Disk device $DISK does not exist.${NC}"
   exit 1
 fi
 
@@ -60,7 +65,7 @@ echo "[DEBUG] Creating report directory at $REPORT_DIR"
 FREE_SPACE=$(df -BG --output=avail "$REPORT_DIR" | tail -n1 | tr -d 'G')
 echo "[DEBUG] Free space in $REPORT_DIR: ${FREE_SPACE}G"
 if [ "$FREE_SPACE" -lt 10 ]; then
-    echo "[WARN] Less than 10GB free space available. Tests may fail."
+    echo -e "${RED}[WARN] Less than 10GB free. Tests may fail.${NC}"
     read -rp "Continue anyway? (y/n): " CONTINUE
     [[ $CONTINUE != [Yy]* ]] && exit 0
 fi
@@ -79,7 +84,7 @@ echo "[INFO] Updating package list..."
 apt update -y || { echo "[ERROR] apt update failed."; exit 1; }
 
 echo "[INFO] Installing required packages..."
-apt install -y smartmontools hdparm fio stress-ng sysstat iotop postgresql-contrib || { echo "[ERROR] Package installation failed."; exit 1; }
+apt install -y smartmontools hdparm fio stress-ng sysstat iotop postgresql-contrib bonnie++ sysbench || { echo "[ERROR] Package installation failed."; exit 1; }
 
 echo "[INFO] Dependencies installation complete."
 echo "Dependencies installed." >> "$REPORT_FILE"
@@ -99,7 +104,7 @@ echo "[INFO] hdparm test complete."
 echo "" >> "$REPORT_FILE"
 
 echo "### dd Write Test" >> "$REPORT_FILE"
-echo "[INFO] Running dd write speed test..."
+echo -e "${GREEN}### Running dd write speed test...${NC}"
 dd if=/dev/zero of=tempfile bs=1G count=1 oflag=dsync >> "$REPORT_FILE" 2>&1 || echo "[WARN] dd write test failed."
 
 echo "[INFO] Removing temporary file..."
@@ -111,6 +116,18 @@ echo "### fio Benchmark Test" >> "$REPORT_FILE"
 echo "[INFO] Running fio read/write benchmark..."
 fio --name=test --filename=test_file --size=512m --rw=readwrite --bs=4k --numjobs=4 --runtime=$SHORT_TEST --group_reporting >> "$REPORT_FILE" || echo "[WARN] fio benchmark failed."
 echo "[INFO] fio benchmark test complete."
+echo "" >> "$REPORT_FILE"
+
+echo "### bonnie++ Disk Benchmark Test" >> "$REPORT_FILE"
+echo "[INFO] Running bonnie++ disk benchmark..."
+bonnie++ -d /tmp -s 2G -r 1G -u root -q >> "$REPORT_FILE" || echo "[WARN] bonnie++ benchmark failed."
+echo "[INFO] bonnie++ benchmark test complete."
+echo "" >> "$REPORT_FILE"
+
+echo "### sysbench Disk Benchmark Test" >> "$REPORT_FILE"
+echo "[INFO] Running sysbench disk benchmark..."
+sysbench fileio --file-total-size=2G --file-test-mode=rndrw --time=$SHORT_TEST --max-requests=0 --max-time=$SHORT_TEST --num-threads=4 run >> "$REPORT_FILE" || echo "[WARN] sysbench benchmark failed."
+echo "[INFO] sysbench benchmark test complete."
 echo "" >> "$REPORT_FILE"
 
 echo "## Step 4: High-Pressure Disk Stress Tests" >> "$REPORT_FILE"
@@ -161,7 +178,7 @@ fi
 if [ -z "$SKIP_PGSQL" ]; then
     echo "[INFO] Initializing pgbench test database with scale $PGSCALE..."
     sudo -u postgres pgbench -i -s "$PGSCALE" "$PGDB" >> "$REPORT_FILE" || echo "[WARN] pgbench init failed."
-    echo "[INFO] Running pgbench benchmark test..."
+    echo -e "${GREEN}[INFO] Running PostgreSQL tests...${NC}"
     sudo -u postgres pgbench -c 10 -j 2 -T $SHORT_TEST "$PGDB" >> "$REPORT_FILE" || echo "[WARN] pgbench test failed."
     echo "[INFO] pgbench test complete."
 fi

@@ -174,6 +174,48 @@ else
   sysctl -w vm.swappiness=30
 fi
 
+# Advanced disk tuning parameters
+echo "[INFO] Applying advanced disk tuning parameters..."
+if [ -f "/sys/block/$DISK_NAME/queue/nr_requests" ]; then
+  echo "* Setting nr_requests to 128" >> "$TUNING_FILE"
+  echo 128 > "/sys/block/$DISK_NAME/queue/nr_requests"
+fi
+
+if [ -f "/sys/block/$DISK_NAME/queue/max_sectors_kb" ]; then
+  echo "* Setting max_sectors_kb to 512" >> "$TUNING_FILE"
+  echo 512 > "/sys/block/$DISK_NAME/queue/max_sectors_kb"
+fi
+
+if [ -f "/sys/block/$DISK_NAME/device/queue_depth" ]; then
+  echo "* Setting queue_depth to 32" >> "$TUNING_FILE"
+  echo 32 > "/sys/block/$DISK_NAME/device/queue_depth"
+fi
+
+# Enable or disable write cache
+if hdparm -W "$DISK" | grep -q "write-caching = 1"; then
+  echo "* Write cache is already enabled" >> "$TUNING_FILE"
+else
+  echo "* Enabling write cache" >> "$TUNING_FILE"
+  hdparm -W1 "$DISK"
+fi
+
+# Enable or disable read cache
+if hdparm -I "$DISK" | grep -q "Read cache"; then
+  echo "* Read cache is already enabled" >> "$TUNING_FILE"
+else
+  echo "* Enabling read cache" >> "$TUNING_FILE"
+  hdparm -W1 "$DISK"
+fi
+
+# Enable or disable write barriers
+if [ "$IS_SSD" = true ]; then
+  echo "* Disabling write barriers for SSD" >> "$TUNING_FILE"
+  mount -o remount,nobarrier "$DISK"
+else
+  echo "* Enabling write barriers for HDD" >> "$TUNING_FILE"
+  mount -o remount,barrier "$DISK"
+fi
+
 # Prompt user if they want to skip PostgreSQL tuning
 if [ -n "$PG_TPS" ]; then
   echo -e "${CYAN}[INFO] PostgreSQL performance metrics detected.${NC}"

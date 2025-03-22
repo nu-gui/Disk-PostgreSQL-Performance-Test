@@ -84,7 +84,7 @@ echo "[INFO] Updating package list..."
 apt update -y || { echo "[ERROR] apt update failed."; exit 1; }
 
 echo "[INFO] Installing required packages..."
-apt install -y smartmontools hdparm fio stress-ng sysstat iotop postgresql-contrib || { echo "[ERROR] Package installation failed."; exit 1; }
+apt install -y smartmontools hdparm fio stress-ng sysstat iotop postgresql-contrib bonnie++ sysbench || { echo "[ERROR] Package installation failed."; exit 1; }
 
 echo "[INFO] Dependencies installation complete."
 echo "Dependencies installed." >> "$REPORT_FILE"
@@ -116,6 +116,18 @@ echo "### fio Benchmark Test" >> "$REPORT_FILE"
 echo "[INFO] Running fio read/write benchmark..."
 fio --name=test --filename=test_file --size=512m --rw=readwrite --bs=4k --numjobs=4 --runtime=$SHORT_TEST --group_reporting >> "$REPORT_FILE" || echo "[WARN] fio benchmark failed."
 echo "[INFO] fio benchmark test complete."
+echo "" >> "$REPORT_FILE"
+
+echo "### bonnie++ Disk Benchmark Test" >> "$REPORT_FILE"
+echo "[INFO] Running bonnie++ disk benchmark..."
+bonnie++ -d /tmp -s 2G -r 1G -u root -q >> "$REPORT_FILE" || echo "[WARN] bonnie++ benchmark failed."
+echo "[INFO] bonnie++ benchmark test complete."
+echo "" >> "$REPORT_FILE"
+
+echo "### sysbench Disk Benchmark Test" >> "$REPORT_FILE"
+echo "[INFO] Running sysbench disk benchmark..."
+sysbench fileio --file-total-size=2G --file-test-mode=rndrw --time=$SHORT_TEST --max-requests=0 --max-time=$SHORT_TEST --num-threads=4 run >> "$REPORT_FILE" || echo "[WARN] sysbench benchmark failed."
+echo "[INFO] sysbench benchmark test complete."
 echo "" >> "$REPORT_FILE"
 
 echo "## Step 4: High-Pressure Disk Stress Tests" >> "$REPORT_FILE"

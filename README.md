@@ -219,7 +219,7 @@ All reports are saved to `/var/log/vm-disk-pgsql-test/` by default, including:
 - Debian/Ubuntu Linux
 - Root privileges
 - PostgreSQL installed
-- Utilities: smartmontools, hdparm, fio, stress-ng, sysstat, iotop
+- Utilities: smartmontools, hdparm, fio, stress-ng, sysstat, iotop, bonnie++, sysbench
 
 ## Best Practices
 

@@ -25,10 +25,15 @@ function cleanup() {
 }
 trap cleanup EXIT
 
-# Prompt user for disk device, pgbench scale factor, report directory, and database name
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+NC='\033[0m'
+
+# Prompt user for disk device, show a short notice
+echo -e "${GREEN}[INFO] Starting disk and PostgreSQL benchmark...${NC}"
 read -rp "Enter the disk device to test (e.g., /dev/sda): " DISK
 if [ ! -b "$DISK" ]; then
-  echo "[ERROR] Disk device $DISK does not exist. Exiting."
+  echo -e "${RED}[ERROR] Disk device $DISK does not exist.${NC}"
   exit 1
 fi
 
@@ -60,7 +65,7 @@ echo "[DEBUG] Creating report directory at $REPORT_DIR"
 FREE_SPACE=$(df -BG --output=avail "$REPORT_DIR" | tail -n1 | tr -d 'G')
 echo "[DEBUG] Free space in $REPORT_DIR: ${FREE_SPACE}G"
 if [ "$FREE_SPACE" -lt 10 ]; then
-    echo "[WARN] Less than 10GB free space available. Tests may fail."
+    echo -e "${RED}[WARN] Less than 10GB free. Tests may fail.${NC}"
     read -rp "Continue anyway? (y/n): " CONTINUE
     [[ $CONTINUE != [Yy]* ]] && exit 0
 fi
@@ -99,7 +104,7 @@ echo "[INFO] hdparm test complete."
 echo "" >> "$REPORT_FILE"
 
 echo "### dd Write Test" >> "$REPORT_FILE"
-echo "[INFO] Running dd write speed test..."
+echo -e "${GREEN}### Running dd write speed test...${NC}"
 dd if=/dev/zero of=tempfile bs=1G count=1 oflag=dsync >> "$REPORT_FILE" 2>&1 || echo "[WARN] dd write test failed."
 
 echo "[INFO] Removing temporary file..."
@@ -161,7 +166,7 @@ fi
 if [ -z "$SKIP_PGSQL" ]; then
     echo "[INFO] Initializing pgbench test database with scale $PGSCALE..."
     sudo -u postgres pgbench -i -s "$PGSCALE" "$PGDB" >> "$REPORT_FILE" || echo "[WARN] pgbench init failed."
-    echo "[INFO] Running pgbench benchmark test..."
+    echo -e "${GREEN}[INFO] Running PostgreSQL tests...${NC}"
     sudo -u postgres pgbench -c 10 -j 2 -T $SHORT_TEST "$PGDB" >> "$REPORT_FILE" || echo "[WARN] pgbench test failed."
     echo "[INFO] pgbench test complete."
 fi
